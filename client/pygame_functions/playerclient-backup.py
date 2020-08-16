@@ -1,8 +1,9 @@
+# old & obsolete version
+
+
 from random import random
 
 import pygame
-from client.graph_pygame import main
-from client.pygame_functions.roundedrect import pygame.draw.rect
 
 pygame.init()
 

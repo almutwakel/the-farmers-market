@@ -15,7 +15,8 @@ pygame.init()
 
 
 def make_dollars(dollars):
-    dollars = str(round(dollars, 2))
+    if dollars is float or int:
+        dollars = str(round(dollars/1.0, 2))
     if dollars[-2:-1] == ".":
         dollars += "0"
     return dollars
@@ -47,7 +48,10 @@ class ClientInstance:
         self.cabbage = pygame.image.load("images/Cabbage.png")
         self.pumpkin = pygame.image.load("images/Pumpkin.png")
         self.melon = pygame.image.load("images/Melon.png")
+        self.volume = 5
         pygame.mixer.music.load("music/SlushHike.mp3")
+        pygame.mixer.music.play(-1)
+        pygame.mixer.music.set_volume(self.volume / 10)
         self.valid_chars = "`1234567890-= qwertyuiop[]\\asdfghjkl;'zxcvbnm,./" + '~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:"ZXCVBNM<>?'
         self.valid_nums = "1234567890"
         self.inventory_open = False
@@ -58,11 +62,12 @@ class ClientInstance:
         self.chatbox = False
         self.quantitybox = False
         self.settings = False
+        self.help = False
         self.market = False
         self.exchange = False
         self.over_box_limit = False
-        self.offerbox_txt = "0"
-        self.offer = True
+        self.offerbox_txt = "Custom"
+        self.offer_amt = 0.0
         self.offerbox = False
         self.box_filled_color_title = (120 - 16, 150, 80 - 16)
         self.background_color = (120 - 16, 160, 80 - 16)
@@ -96,7 +101,6 @@ class ClientInstance:
         self.newspaperfont = pygame.font.SysFont("Monotype Corsiva", 60)
         self.newspaperfont2 = pygame.font.SysFont("Monotype Corsiva", 30)
         pygame.display.set_caption("The Farmer's Market")
-        pygame.mixer.music.play(-1)
         self.menu_gui = {"hover": 1, "main": 0, "type": 0}
         # self.delta1, self.delta2, self.delta3, self.delta4 = 1, 1, 1, 1
         self.e = [self.potato, self.carrot, self.wheat, self.tomato, self.corn, self.cabbage, self.pumpkin, self.melon]
@@ -105,7 +109,6 @@ class ClientInstance:
         self.leaderboard = False
         self.chatbox_msg = "Enter message"
         self.quantitybox_txt = "Custom"
-        self.prediction_text = "NONE"
         self.quantity = 1
         self.night = 0
         self.loading_X = 0
@@ -145,7 +148,7 @@ class ClientInstance:
     def check_mouse_hover(self, click=False):
         self.x, self.y = pygame.mouse.get_pos()
         x, y = self.x, self.y
-        if self.menu:
+        if self.menu or self.settings:
             if self.WIDTH * 0.25 <= x <= self.WIDTH * 0.75 and self.HEIGHT * 0.39 <= y <= self.HEIGHT * 0.49:
                 self.menu_gui["hover"] = 1
                 if click:
@@ -189,6 +192,9 @@ class ClientInstance:
             if self.menu_gui["main"] == 0:
                 if self.menu_gui["hover"] == 4:
                     self.run = False
+                elif self.menu_gui["hover"] == 2:
+                    self.settings = True
+                    self.menu_gui["main"] = 2
                 else:
                     self.menu_gui["main"] = self.menu_gui["hover"]
                     self.menu_gui["hover"] = 1
@@ -200,6 +206,11 @@ class ClientInstance:
                     self.menu = False
                     self.loading = True
                     self.load(mp=False)
+                    self.game = True
+                elif self.menu_gui["hover"] == 2 and self.menu_gui["main"] == 1:
+                    self.menu = False
+                    self.loading = True
+                    self.load(mp=True)
                     self.game = True
                 else:
                     self.menu_gui["type"] = self.menu_gui["hover"]
@@ -232,88 +243,6 @@ class ClientInstance:
         self.over_box_limit = False
         return msg
 
-    def generate_prediction(self):
-        prices = self.GameObject.prices
-        pred_veg = self.GameObject.players[self.GameObject.playerid]["rank"]
-        # print("Prediction: " + str(prices[pred_veg][self.GameObject.day + 1]) + " vs " + str(prices[pred_veg][self.day]))
-        if self.GameObject.day < self.GameObject.day_limit and prices[pred_veg][self.GameObject.day + 1] > prices[pred_veg][self.GameObject.day]:
-            self.prediction_text = "UP"
-        elif self.GameObject.day < self.GameObject.day_limit and prices[pred_veg][self.GameObject.day + 1] < prices[pred_veg][self.GameObject.day]:
-            self.prediction_text = "DOWN"
-        else:
-            self.prediction_text = "NONE"
-        return pred_veg
-
-    def execute_event(self, event_number):
-        self.daily_message = ""
-        if self.GameObject.day <= 0:
-            self.daily_title = "Farmers Markets Opens!"
-            self.daily_message = "First time in the markets? Buy low and sell high to become the most profitable. Watch out for events every third day. "
-        elif event_number == 0:
-            self.daily_title = "Farmer's Market is Open!"
-            self.daily_message = "Normal day today in the market. "
-            for v in range(0, 4):
-                self.GameObject.vegetables[self.GameObject.g[v]]["stock"] += round(0.2 * self.GameObject.vegetables[self.GameObject.g[v]]["init_stock"])
-        elif event_number == 1:
-            self.daily_title = "Stock Shortage!"
-            self.daily_message = "A surge in demand has caused a shortage of produce. "
-            for v in range(0, 4):
-                self.GameObject.vegetables[self.GameObject.g[v]]["stock"] = round(0.5 * self.GameObject.vegetables[self.GameObject.g[v]]["stock"])
-        elif event_number == 2:
-            self.daily_title = "Stock surplus!"
-            self.daily_message = "Demand has plummeted, causing the available stock to rise. "
-            for v in range(0, 4):
-                self.GameObject.vegetables[self.GameObject.g[v]]["stock"] += self.GameObject.vegetables[self.GameObject.g[v]]["init_stock"]
-        elif event_number == 3:
-            self.daily_message = "A disaster at the market has ruined all of the stocked produce. "
-            self.daily_title = "Complete Stock Shortage!"
-            for v in range(0, 4):
-                self.GameObject.vegetables[self.GameObject.g[v]]["stock"] = 0
-        elif event_number == 4:
-            self.daily_title = "1/4 of Vegetables Rot!"
-            self.daily_message = "Bad weather has caused about 1/4 of all inventory produce to go bad overnight. "
-            for v in range(0, 4):
-                self.GameObject.vegetables[self.GameObject.g[v]]["count"] = round(0.75 * self.GameObject.vegetables[self.GameObject.g[v]]["count"])
-        elif event_number == 5:
-            rotten_vegetable = randint(0, 3)
-            self.daily_title = "1/2 of " + self.GameObject.vegetables[self.GameObject.g[rotten_vegetable]]["name"] + " Rotten!"
-            self.daily_message = "Infestations have caused 1/2 of all of this inventoried vegetable to go bad. "
-            for v in range(0, 4):
-                self.GameObject.vegetables[self.GameObject.g[v]]["count"] = round(0.5 * self.GameObject.vegetables[self.GameObject.g[v]]["count"])
-        elif event_number == 6:
-            self.daily_title = "Prices at Record Highs!"
-            self.daily_message = "Hyper-inflation has caused market prices to skyrocket. "
-
-        elif event_number == 7:
-            self.daily_title = "Prices at Record Lows!"
-            self.daily_message = "Economic depression has caused market prices to plummet. "
-
-        elif event_number == 8:
-            self.daily_title = "Balances Cut in Half!"
-            self.daily_message = "Economic recession has caused all savings to be slashed by 50%. "
-            self.GameObject.balance *= 0.5
-        elif event_number == 9:
-            self.daily_title = "Everyone Taxed at 25%!"
-            self.daily_message = "New taxes cause all balances to be reduced by 25%. "
-            self.GameObject.balance *= 0.75
-
-        self.daily_message += "Vegetables available now: " + self.GameObject.vegetables[self.GameObject.g1][
-            "name"] + ": $" + make_dollars(
-            self.GameObject.vegetables[self.GameObject.g1]["cost"] * self.GameObject.prices[0][self.GameObject.day + 1]) + ", with " + str(
-            self.GameObject.vegetables[self.GameObject.g1]["stock"]) + " in stock. " + \
-                              self.GameObject.vegetables[self.GameObject.g2][
-                                  "name"] + ": $" + make_dollars(
-            self.GameObject.vegetables[self.GameObject.g2]["cost"] * self.GameObject.prices[1][self.GameObject.day + 1]) + ", with " + str(
-            self.GameObject.vegetables[self.GameObject.g2]["stock"]) + " in stock. " + self.GameObject.vegetables[self.GameObject.g3][
-                                  "name"] + ": $" + make_dollars(
-            self.GameObject.vegetables[self.GameObject.g3]["cost"] * self.GameObject.prices[2][self.GameObject.day + 1]) + ", with " + str(
-            self.GameObject.vegetables[self.GameObject.g3]["stock"]) + " in stock. " + \
-                              self.GameObject.vegetables[self.GameObject.g4][
-                                  "name"] + ": $" + make_dollars(
-            self.GameObject.vegetables[self.GameObject.g4]["cost"] * self.GameObject.prices[3][self.GameObject.day + 1]) + ", with " + str(
-            self.GameObject.vegetables[self.GameObject.g4]["stock"]) + " in stock. " + "High demand this season! " + "Here for " + str(
-            self.GameObject.day_limit - self.GameObject.day) + " more days!"
-
     def next_night(self):
         self.news = True
         self.leaderboard = True
@@ -321,8 +250,6 @@ class ClientInstance:
         self.exchange = False
         self.night = self.GameObject.day + 1
         self.GameObject.next_night()
-        self.execute_event(self.GameObject.dayevent[self.GameObject.day])
-
 
     def run_menu(self):
         pygame.time.delay(3)
@@ -331,8 +258,10 @@ class ClientInstance:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.run = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and not self.menu_gui["main"] == 3:
                 self.mouse_choose()
+            elif self.menu_gui["main"] == 3 and event.type == pygame.MOUSEBUTTONDOWN:
+                self.menu_gui["main"] = 0
 
         keys = pygame.key.get_pressed()
 
@@ -361,30 +290,31 @@ class ClientInstance:
         if self.Y > 10 or self.Y < -10:
             self.Y_increment *= -1
         self.Y += self.Y_increment
-        if self.menu_gui["hover"] == 1:
-            pygame.draw.rect(self.window, self.box_filled_color_title,
-                             (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1))
-        else:
-            pygame.draw.rect(self.window, self.green_title,
-                             (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1))
-        pygame.draw.rect(self.window, (0, 0, 0),
-                         (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
-        if self.menu_gui["hover"] == 2:
-            pygame.draw.rect(self.window, self.box_filled_color_title,
-                             (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1))
-        else:
-            pygame.draw.rect(self.window, self.green_title,
-                             (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1))
-        pygame.draw.rect(self.window, (0, 0, 0),
-                         (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
-        if self.menu_gui["hover"] == 3:
-            pygame.draw.rect(self.window, self.box_filled_color_title,
-                             (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1))
-        else:
-            pygame.draw.rect(self.window, self.green_title,
-                             (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1))
-        pygame.draw.rect(self.window, (0, 0, 0),
-                         (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+        if self.menu_gui["main"] <= 1:
+            if self.menu_gui["hover"] == 1:
+                pygame.draw.rect(self.window, self.box_filled_color_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            else:
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, (0, 0, 0),
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+            if self.menu_gui["hover"] == 2:
+                pygame.draw.rect(self.window, self.box_filled_color_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            else:
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, (0, 0, 0),
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+            if self.menu_gui["hover"] == 3:
+                pygame.draw.rect(self.window, self.box_filled_color_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            else:
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, (0, 0, 0),
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
         if self.menu_gui["main"] == 0:
             self.make_text("Play", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.44 + 5)
             self.make_text("Settings", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.59 + 5)
@@ -402,6 +332,12 @@ class ClientInstance:
             self.make_text("Single-player", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.44 + 5)
             self.make_text("Multi-player", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.59 + 5)
             self.make_text("Back", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.74 + 5)
+        elif self.menu_gui["main"] == 3:
+            self.blit_text(0.6 * self.WIDTH, 0.5 * self.HEIGHT,
+                           "Made by Almutwakel Hassan. Art Contributions by Harry Li. github.com/almutwakel",
+                           (0.22 * self.WIDTH, 0.4 * self.HEIGHT), self.font2, self.black)
+            self.make_text("Click Anywhere to Return to Menu", self.font2, self.black, self.WIDTH * 0.5,
+                           self.HEIGHT * 0.89 + 5 + self.Y)
         pygame.display.update()
         # self.HEIGHT = window.get_height()
         # self.WIDTH = window.get_self.WIDTH()
@@ -422,7 +358,7 @@ class ClientInstance:
 
         self.loading_X += 1
 
-        if self.loading_X >= (self.WIDTH * 0.4 - 6)/10:
+        if self.loading_X >= (self.WIDTH * 0.4 - 6) / 10:
             self.loading = False
 
     def load(self, mp):
@@ -430,11 +366,94 @@ class ClientInstance:
         self.loading = True
         self.GameObject = GameInstance(multiplayer=mp)
         pygame.mixer_music.load("music/guitar_music.mp3")
+        pygame.mixer.music.set_volume(self.volume / 10)
         pygame.mixer.music.play(-1)
         self.chatbox = False
         self.settings = False
         pygame.time.set_timer(pygame.USEREVENT + 2, 1000)
         self.next_night()
+
+    def run_settings(self):
+        self.window.fill(self.background_color)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.run = False
+            if event.type == pygame.MOUSEMOTION:
+                (self.x, self.y) = pygame.mouse.get_pos()
+                self.check_mouse_hover()
+            if event.type == pygame.MOUSEBUTTONDOWN and not self.help:
+                if 0.25 * self.WIDTH <= self.x <= 0.75 * self.WIDTH:
+                    if self.HEIGHT * 0.24 <= self.y <= self.HEIGHT * 0.34:
+                        self.volume = (self.x - 227) // 54
+                        pygame.mixer.music.set_volume(self.volume / 10)
+                    if self.HEIGHT * 0.39 <= self.y <= self.HEIGHT * 0.49:
+                        self.settings = False
+                        self.menu_gui["main"] = 0
+                    if self.HEIGHT * 0.54 <= self.y <= self.HEIGHT * 0.64:
+                        self.help = True
+                        self.Y = 0
+                    if self.HEIGHT * 0.69 <= self.y <= self.HEIGHT * 0.79:
+                        if not self.menu:
+                            self.game = False
+                            self.menu = True
+                            self.menu_gui["main"] = 0
+                            self.settings = False
+                            pygame.mixer.music.load("music/SlushHike.mp3")
+                            pygame.mixer.music.play(-1)
+                            pygame.mixer.music.set_volume(self.volume / 10)
+                        else:
+                            self.settings = False
+                            self.run = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and self.help:
+                self.help = False
+        if not self.help:
+            self.make_text("Volume", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.2)
+            pygame.draw.rect(self.window, self.green,
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.24, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, self.black,
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.24, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+            for bar in range(self.volume):
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25 + bar * 54 + 10, self.HEIGHT * 0.24 + 10, 34,
+                                  self.HEIGHT * 0.1 - 20))
+            if self.menu_gui["hover"] == 1:
+                pygame.draw.rect(self.window, self.box_filled_color_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            else:
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, (0, 0, 0),
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.39, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+            if self.menu_gui["hover"] == 2:
+                pygame.draw.rect(self.window, self.box_filled_color_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            else:
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, (0, 0, 0),
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.54, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+            if self.menu_gui["hover"] == 3:
+                pygame.draw.rect(self.window, self.box_filled_color_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            else:
+                pygame.draw.rect(self.window, self.green_title,
+                                 (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1))
+            pygame.draw.rect(self.window, (0, 0, 0),
+                             (self.WIDTH * 0.25, self.HEIGHT * 0.69, self.WIDTH * 0.5, self.HEIGHT * 0.1), 3)
+            self.make_text("Return", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.44 + 5)
+            self.make_text("Help", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.59 + 5)
+            self.make_text("Quit", self.font2, self.black, self.WIDTH * 0.5, self.HEIGHT * 0.74 + 5)
+        else:
+            self.blit_text(0.8 * self.WIDTH, 0.85 * self.HEIGHT,
+                           "First time in the markets? Buy low and sell high to become the most profitable. Watch out for events every third day. Use the Market to trade vegetables, and Exchange to trade predictions. Each player has their own daily prediction.",
+                           (0.12 * self.WIDTH, 0.1 * self.HEIGHT), self.font2, self.black)
+            if self.Y > 10 or self.Y < -10:
+                self.Y_increment *= -1
+            self.Y += self.Y_increment / 2
+            self.make_text("Click Anywhere to Return to Settings", self.font2, self.black, self.WIDTH * 0.5,
+                           self.HEIGHT * 0.89 + 5 + self.Y)
+
+        pygame.display.update()
 
     def run_game(self):
         self.Clock.tick()
@@ -443,17 +462,10 @@ class ClientInstance:
                 self.run = False
             if event.type == pygame.MOUSEMOTION:
                 (self.x, self.y) = pygame.mouse.get_pos()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 # settings button
                 if 0.01 * self.WIDTH <= self.x <= 0.17 * self.WIDTH and 0.925 * self.HEIGHT <= self.y <= 0.99 * self.HEIGHT:
                     self.settings = True
-                    self.news = False
-                    self.market = False
-                    self.exchange = False
-                    self.chatbox = False
-                    self.chat_gui = False
-                    self.leaderboard = False
-                    self.chatbox_msg = "Enter message"
                 # news button
                 elif 0.2 * self.WIDTH <= self.x <= 0.36 * self.WIDTH and 0.925 * self.HEIGHT <= self.y <= 0.99 * self.HEIGHT:
                     self.settings = False
@@ -483,6 +495,15 @@ class ClientInstance:
                     self.exchange = True
                     self.chatbox = False
                     self.leaderboard = True
+                elif self.exchange and 550 <= self.x <= 690 and 138 <= self.y <= 182:
+                    self.offerbox = True
+                    self.offerbox_txt = ""
+                elif self.exchange and 255 <= self.x <= 355 and 140 - self.title_height * 1.5 <= self.y <= 140 + self.title_height * 1.3:
+                    print("hi")
+                    self.GameObject.players[self.GameObject.playerid]["offer"][0] = True
+                elif self.exchange and 352 <= self.x <= 452 and 140 - self.title_height * 1.5 <= self.y <= 140 + self.title_height * 1.3:
+                    print("bye")
+                    self.GameObject.players[self.GameObject.playerid]["offer"][0] = False
                 # market veg buttons (inventory_position - 60, -40 + 0.25 * self.HEIGHT + 31, 50, 50)
                 elif self.inventory_position - 60 <= self.x <= self.inventory_position - 10 and 171 <= self.y <= 221:
                     self.market_selection = 1
@@ -510,36 +531,10 @@ class ClientInstance:
                     self.quantitybox_txt = ""
                 # buy button
                 elif self.market and 680 <= self.x <= 790 and 390 <= self.y <= 390 + self.HEIGHT * 0.06 + 2 and not self.GameObject.nighttime:
-                    inv_item = self.GameObject.g[self.market_selection - 1]
-                    item_cost = self.GameObject.vegetables[inv_item]["cost"] * self.GameObject.prices[self.market_selection - 1][self.GameObject.day]
-                    if self.GameObject.balance >= item_cost * self.quantity and self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]][
-                        "stock"] >= self.quantity:
-                        self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"] -= self.quantity
-                        self.GameObject.vegetables[inv_item]["count"] += self.quantity
-                        self.GameObject.balance -= item_cost * self.quantity
-                    else:
-                        tempquantity = self.quantity
-                        if tempquantity >= self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"]:
-                            tempquantity = self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"]
-                        if item_cost * tempquantity >= self.GameObject.balance:
-                            tempquantity = int(self.GameObject.balance / item_cost)
-                        self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"] -= tempquantity
-                        self.GameObject.vegetables[inv_item]["count"] += tempquantity
-                        self.GameObject.balance -= item_cost * tempquantity
-
+                    self.GameObject.buy(self.GameObject.playerid, self.market_selection - 1, self.quantity)
                 # sell button
                 elif self.market and 680 <= self.x <= 790 and 470 <= self.y <= 470 + self.HEIGHT * 0.06 + 2 and not self.GameObject.nighttime:
-                    inv_item = self.GameObject.g[self.market_selection - 1]
-                    item_cost = self.GameObject.vegetables[inv_item]["cost"] * self.GameObject.prices[self.market_selection - 1][self.GameObject.day]
-                    if self.GameObject.vegetables[inv_item]["count"] >= self.quantity:
-                        self.GameObject.vegetables[inv_item]["count"] -= self.quantity
-                        self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"] += self.quantity
-                        self.GameObject.balance += item_cost * self.quantity
-                    else:
-                        amt = self.GameObject.vegetables[inv_item]["count"]
-                        self.GameObject.vegetables[inv_item]["count"] -= amt
-                        self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"] += amt
-                        self.GameObject.balance += item_cost * amt
+                    self.GameObject.sell(self.GameObject.playerid, self.market_selection - 1, self.quantity)
                 # chatbox chat box selection
                 elif 830 <= self.x <= 1055 and 660 <= self.y <= 715:
                     self.market = False
@@ -608,6 +603,24 @@ class ClientInstance:
                             self.quantity = 1
                     if keys[pygame.K_ESCAPE] or keys[pygame.K_RETURN]:
                         self.quantitybox = False
+                elif self.offerbox:
+                    keys = pygame.key.get_pressed()
+                    if keys[pygame.K_BACKSPACE]:
+                        if len(self.offerbox_txt) > 0:
+                            self.offerbox_txt = self.offerbox_txt[:-1]
+                        try:
+                            self.offer_amt = int(self.offerbox_txt)/1.0
+                        except ValueError:
+                            self.offer_amt = 0.0
+                    if event.unicode in self.valid_nums:
+                        if len(self.offerbox_txt) < 5:
+                            self.offerbox_txt += str(event.unicode)
+                        try:
+                            self.offer_amt = int(self.offerbox_txt)/1.0
+                        except ValueError:
+                            self.offer_amt = 0.0
+                    if keys[pygame.K_ESCAPE] or keys[pygame.K_RETURN]:
+                        self.offerbox = False
 
             if event.type == pygame.USEREVENT + 2:
                 self.GameObject.update_constant()
@@ -651,7 +664,8 @@ class ClientInstance:
         AAfilledRoundedRect(self.window, self.background_filled_color,
                             (self.WIDTH * 0.01, self.HEIGHT * 0.02, self.WIDTH * 0.12, self.HEIGHT * 0.06))
         if self.GameObject.day > 0 and not self.GameObject.nighttime:
-            self.make_text("Day " + str(self.GameObject.day), self.font5, self.brown, 0.07 * self.WIDTH, 0.05 * self.HEIGHT + 2)
+            self.make_text("Day " + str(self.GameObject.day), self.font5, self.brown, 0.07 * self.WIDTH,
+                           0.05 * self.HEIGHT + 2)
         else:
             self.make_text("Night", self.font5, self.brown, 0.07 * self.WIDTH, 0.05 * self.HEIGHT + 2)
         # seconds display
@@ -666,7 +680,7 @@ class ClientInstance:
         # balance display
         AAfilledRoundedRect(self.window, self.background_filled_color,
                             (self.WIDTH * 0.72, self.HEIGHT * 0.02, self.WIDTH * 0.27, self.HEIGHT * 0.06))
-        self.make_text("Balance: $" + make_dollars(round(self.GameObject.balance, 2)), self.font5, self.brown,
+        self.make_text("Balance: $" + make_dollars(round(self.GameObject.players[self.GameObject.playerid]["balance"], 2)), self.font5, self.brown,
                        0.855 * self.WIDTH,
                        0.05 * self.HEIGHT + 2)
         # FPS / PING
@@ -692,28 +706,32 @@ class ClientInstance:
                                 (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 31, 50, 50))
         self.window.blit(self.e[self.GameObject.g1], (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 31))
         self.make_text("X", self.font5, self.brown, self.inventory_position + 15, -40 + 0.25 * self.HEIGHT + 60)
-        self.make_text(str(self.GameObject.vegetables[self.GameObject.g1]["count"]), self.font5, self.brown, self.inventory_position + 60,
+        self.make_text(str(self.GameObject.players[self.GameObject.playerid]["inv"][0]), self.font5, self.brown,
+                       self.inventory_position + 60,
                        -40 + 0.25 * self.HEIGHT + 60)
         if self.market_selection == 2:
             AAfilledRoundedRect(self.window, self.bright_green,
                                 (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 91, 50, 50))
         self.window.blit(self.e[self.GameObject.g2], (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 91))
         self.make_text("X", self.font5, self.brown, self.inventory_position + 15, -40 + 0.25 * self.HEIGHT + 120)
-        self.make_text(str(self.GameObject.vegetables[self.GameObject.g2]["count"]), self.font5, self.brown, self.inventory_position + 60,
+        self.make_text(str(self.GameObject.players[self.GameObject.playerid]["inv"][1]), self.font5, self.brown,
+                       self.inventory_position + 60,
                        -40 + 0.25 * self.HEIGHT + 120)
         if self.market_selection == 3:
             AAfilledRoundedRect(self.window, self.bright_green,
                                 (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 151, 50, 50))
         self.window.blit(self.e[self.GameObject.g3], (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 151))
         self.make_text("X", self.font5, self.brown, self.inventory_position + 15, -40 + 0.25 * self.HEIGHT + 180)
-        self.make_text(str(self.GameObject.vegetables[self.GameObject.g3]["count"]), self.font5, self.brown, self.inventory_position + 60,
+        self.make_text(str(self.GameObject.players[self.GameObject.playerid]["inv"][2]), self.font5, self.brown,
+                       self.inventory_position + 60,
                        -40 + 0.25 * self.HEIGHT + 180)
         if self.market_selection == 4:
             AAfilledRoundedRect(self.window, self.bright_green,
                                 (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 211, 50, 50))
         self.window.blit(self.e[self.GameObject.g4], (self.inventory_position - 70, -40 + 0.25 * self.HEIGHT + 211))
         self.make_text("X", self.font5, self.brown, self.inventory_position + 15, -40 + 0.25 * self.HEIGHT + 240)
-        self.make_text(str(self.GameObject.vegetables[self.GameObject.g4]["count"]), self.font5, self.brown, self.inventory_position + 60,
+        self.make_text(str(self.GameObject.players[self.GameObject.playerid]["inv"][3]), self.font5, self.brown,
+                       self.inventory_position + 60,
                        -40 + 0.25 * self.HEIGHT + 240)
         # font5.set_underline(True)
         self.make_text("Prediction", self.font5, self.brown, self.inventory_position, 450)
@@ -721,11 +739,10 @@ class ClientInstance:
                          (self.inventory_position + 70, 450 + self.title_height), 2)
         # font5.set_underline(False)
         # AAfilledRoundedRect(window, bright_green, (inventory_position - 70, 500, 50, 50))
-        if self.GameObject.day >= 1:
-            self.window.blit(self.e[self.GameObject.g[self.GameObject.players[self.GameObject.playerid]["rank"]]], (self.inventory_position - 70, 500))
+        self.window.blit(self.e[self.GameObject.g[self.GameObject.pred_veg]], (self.inventory_position - 70, 500))
         # prediction icon
 
-        self.make_text(self.prediction_text, self.font5, self.brown, self.inventory_position + 42, 528)
+        self.make_text(self.GameObject.prediction_text, self.font5, self.brown, self.inventory_position + 42, 528)
         # leaderboard gui
         if self.leaderboard:
             AAfilledRoundedRect(self.window, self.green, (825, 90, 245, 230), 0.2)
@@ -751,15 +768,13 @@ class ClientInstance:
             msgnum = msglim
             msg_y = 405
             while msg_y <= 825 and msgnum >= 0:
-                msg_y = self.blit_text(235, 405, self.GameObject.chat[msgnum][0] + ": " + self.GameObject.chat[msgnum][1], (835, msg_y),
+                msg_y = self.blit_text(235, 405,
+                                       self.GameObject.chat[msgnum][0] + ": " + self.GameObject.chat[msgnum][1],
+                                       (835, msg_y),
                                        self.font3,
                                        self.brown, 2)
                 msgnum -= 1
                 msg_y += 5
-        #            window.blit(font3.render(chat[msgnum][0] + ": " + line, True, brown), (835, 635 - 30 * i))
-
-        # font5.set_underline(False)
-        # chat text box
         pygame.draw.rect(self.window, self.green, (825, 655, 245, 70))
         if 830 <= self.x <= 1055 and 660 <= self.y <= 715 or self.chatbox:
             AAfilledRoundedRect(self.window, self.beige, (830, 660, 235, 55), 0.2)
@@ -811,10 +826,11 @@ class ClientInstance:
             pygame.draw.line(self.window, self.beige2, (0.3 * self.WIDTH, 200), (0.3 * self.WIDTH, 590), 5)
             pygame.draw.line(self.window, self.beige2, (0.6 * self.WIDTH, 200), (0.6 * self.WIDTH, 590), 5)
             pygame.draw.rect(self.window, self.beige3, (0.3 * self.WIDTH + 12, 215, 0.3 * self.WIDTH - 24, 60))
-            self.make_text(self.daily_title, self.newspaperfont2, self.beige3, 0.45 * self.WIDTH, 295)
-            self.blit_text(0.3 * self.WIDTH - 20, 275, self.daily_message, (0.3 * self.WIDTH + 10, 315), self.font3,
+            self.make_text(self.GameObject.daily_title, self.newspaperfont2, self.beige3, 0.45 * self.WIDTH, 295)
+            self.blit_text(0.3 * self.WIDTH - 20, 275, self.GameObject.daily_message, (0.3 * self.WIDTH + 10, 315),
+                           self.font3,
                            self.beige3, 5)
-        # market menu
+        # market menu  MAM
         elif self.market:
             # box
             AAfilledRoundedRect(self.window, self.green, (0.2 * self.WIDTH, 90, self.WIDTH * 0.7, 500), 0.1)
@@ -828,18 +844,20 @@ class ClientInstance:
                 pygame.draw.line(self.window, self.beige, (0.2 * self.WIDTH + 30, 152 + 29 * i),
                                  (0.2 * self.WIDTH + 430, 152 + 29 * i))
             self.make_text("Day", self.font3, self.brown, 46 + 0.2 * self.WIDTH, 516)
-            if self.GameObject.day < 13:
+            if self.night < 13:
                 pygame.draw.line(self.window, self.brown, (0.2 * self.WIDTH + 30, 383), (0.2 * self.WIDTH + 59, 383), 2)
                 ii = 0
-                graphdays = self.GameObject.day
+                graphdays = self.night
             else:
                 ii = self.GameObject.day - 12
                 graphdays = 12
                 pygame.draw.line(self.window, self.brown,
                                  (0.2 * self.WIDTH + 30,
-                                  516 - 133 * self.GameObject.prices[self.market_selection - 1][self.GameObject.day - 13]),
+                                  516 - 133 * self.GameObject.prices[self.market_selection - 1][
+                                      self.GameObject.day - 13]),
                                  (0.2 * self.WIDTH + 59,
-                                  516 - 133 * self.GameObject.prices[self.market_selection - 1][self.GameObject.day - 12]),
+                                  516 - 133 * self.GameObject.prices[self.market_selection - 1][
+                                      self.GameObject.day - 12]),
                                  2)
             for i in range(graphdays):
                 pygame.draw.line(self.window, self.brown,
@@ -853,20 +871,21 @@ class ClientInstance:
 
             # price display
             # AAfilledRoundedRect(window, dark_white, (240, 520, 155, self.HEIGHT * 0.06 + 2))
-            self.make_text(str(self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["name"]), self.font5, self.brown, 807,
+            self.make_text(str(self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["name"]),
+                           self.font5, self.brown, 807,
                            150)
             self.make_text("Price:", self.font5, self.brown, 725, 215)
             self.make_text("$" + make_dollars(
-                round(self.GameObject.prices[self.market_selection - 1][self.GameObject.day] *
+                round(self.GameObject.prices[self.market_selection - 1][self.night] *
                       self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["cost"], 2)),
                            self.font5,
                            self.brown,
                            725, 255)
             self.make_text("Change:", self.font5, self.brown, 860, 215)
-            if self.GameObject.day > 0:
+            if self.night > 0:
                 change = round(
-                    100 * (-1 + self.GameObject.prices[self.market_selection - 1][self.GameObject.day] /
-                           self.GameObject.prices[self.market_selection - 1][self.GameObject.day - 1]),
+                    100 * (-1 + self.GameObject.prices[self.market_selection - 1][self.night] /
+                           self.GameObject.prices[self.market_selection - 1][self.night - 1]),
                     1)
             else:
                 change = 0
@@ -876,10 +895,12 @@ class ClientInstance:
                 self.make_text(str(change) + "%", self.font5, self.brown, 860, 255)
             # stock display
             self.make_text("Stock:", self.font5, self.brown, 725, 315)
-            self.make_text(str(self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"]), self.font5, self.brown,
+            self.make_text(str(self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["stock"]),
+                           self.font5, self.brown,
                            725, 355)
             self.make_text("Owned:", self.font5, self.brown, 860, 315)
-            self.make_text(str(self.GameObject.vegetables[self.GameObject.g[self.market_selection - 1]]["count"]), self.font5, self.brown,
+            self.make_text(str(self.GameObject.players[self.GameObject.playerid]["inv"][self.market_selection - 1]),
+                           self.font5, self.brown,
                            860, 355)
             # buy button
             if 670 <= self.x <= 780 and 390 <= self.y <= 390 + self.HEIGHT * 0.06 + 2:
@@ -917,35 +938,68 @@ class ClientInstance:
             # select veg buttons
         # exchange menu EXM
         elif self.exchange:
-            self.offer = False
             AAfilledRoundedRect(self.window, self.green, (0.2 * self.WIDTH, 90, self.WIDTH * 0.52, 500), 0.1)
-            if self.offer:
-                AAfilledRoundedRect(self.window, self.bright_green, (255, 140 - self.title_height*1.5, 100, self.title_height*2.8), 0.3)
-                self.make_text("your prediction for:", self.font5, self.brown, 380, 140 + self.title_height * 3)
+            if self.GameObject.players[self.GameObject.playerid]["offer"][0]:
+                AAfilledRoundedRect(self.window, self.bright_green,
+                                    (255, 140 - self.title_height * 1.5, 100, self.title_height * 2.8), 0.3)
+                self.make_text("your prediction for:", self.font5, self.brown, 377, 140 + self.title_height * 3)
             else:
-                AAfilledRoundedRect(self.window, self.bright_green, (352, 140 - self.title_height*1.5, 136, self.title_height*2.8), 0.3)
-                self.make_text("one prediction for:", self.font5, self.brown, 380, 140 + self.title_height * 3)
+                AAfilledRoundedRect(self.window, self.bright_green,
+                                    (352, 140 - self.title_height * 1.5, 136, self.title_height * 2.8), 0.3)
+                self.make_text("one prediction for:", self.font5, self.brown, 377, 140 + self.title_height * 3)
             self.make_text("Offer", self.font5, self.brown, 305, 140)
             self.make_text("Request", self.font5, self.brown, 420, 140)
+            self.make_text("Price:", self.font5, self.brown, 925, 215)
+            if self.offerbox:
+                AAfilledRoundedRect(self.window, self.bright_green, (550, 138, 140, 45))
+            if self.offerbox_txt == "Custom" or self.offerbox_txt == "":
+                self.make_text(self.offerbox_txt, self.font5, self.brown, 620, 165)
+            else:
+                self.make_text(make_dollars(self.offer_amt), self.font5, self.brown, 620, 165)
+            self.make_text("$", self.font5, self.brown, 535, 164)
+            AAfilledRoundedRect(self.window, self.bright_green, (700, 138, 45, 45))
+            self.make_text(">", self.font5, self.brown, 722, 164)
 
         pygame.display.update()
 
 
-class GameInstance:
-    def __init__(self, multiplayer, playerid=1, player1name="Player", player2name="Computer 1", player3name="Computer 2", player4name="Computer 3", settings=None):
+class GameInstance(object):
+    def __init__(self, multiplayer, playerid=1, player1name="Player", player2name="Computer 1",
+                 player3name="Computer 2", player4name="Computer 3", settings=None):
         if settings is None:
             settings = []
-            self.multiplayer = multiplayer
-            self.day_limit = 20
-            self.day_timer = 25
-            self.night_timer = 15
-            self.day = 0
+        self.multiplayer = multiplayer
+        self.day_limit = 20
+        self.day_timer = 25
+        self.night_timer = 15
+        self.disabled_events = []
+        g1, g2, g3, g4 = randint(0, 7), randint(0, 7), randint(0, 7), randint(0, 7)
+        while g2 == g1 or g2 == g3 or g2 == g4:
+            g2 = randint(0, 7)
+        while g3 == g1 or g3 == g2 or g3 == g4:
+            g3 = randint(0, 7)
+        while g4 == g1 or g4 == g2 or g4 == g3:
+            g4 = randint(0, 7)
+        for setting in settings:
+            if setting[0] == 0:
+                self.day_limit = setting[1]
+            elif setting[0] == 1:
+                self.day_timer = setting[1]
+            elif setting[0] == 2:
+                self.night_timer = setting[1]
+            elif setting[0] == 3:
+                self.disabled_events = setting[1]
+            elif setting[0] == 4:
+                g1, g2, g3, g4 = setting[1][0:3]
+
         if not multiplayer:
             self.prices = [[1.0], [1.0], [1.0], [1.0]]
             self.dayevent = []
             for de in range(0, self.day_limit + 1):
                 if de > 0 and de % 3 == 0:
                     evnt = randint(1, 9)
+                    while evnt in self.disabled_events:
+                        evnt = randint(1, 9)
                     self.dayevent.append(evnt)
                     if evnt == 6:
                         modifier = 1.5
@@ -962,6 +1016,8 @@ class GameInstance:
                                 1 + (0.2 - 0.4 * random()) + 0.05 * (1.2 - modifier * self.prices[vg][de])))
                     if self.prices[vg][de + 1] > 2.8:
                         self.prices[vg][de + 1] = 2.8
+        else:
+            pass
             g1, g2, g3, g4 = randint(0, 7), randint(0, 7), randint(0, 7), randint(0, 7)
             while g2 == g1 or g2 == g3 or g2 == g4:
                 g2 = randint(0, 7)
@@ -969,44 +1025,54 @@ class GameInstance:
                 g3 = randint(0, 7)
             while g4 == g1 or g4 == g2 or g4 == g3:
                 g4 = randint(0, 7)
-        else:
             # set g values to acquired numbers
             pass
-        self.playerid = playerid
+        self.day = 0
+        self.playerid = playerid - 1
         self.g1, self.g2, self.g3, self.g4 = g1, g2, g3, g4
         self.g = [g1, g2, g3, g4]
-        self.balance = 100.00
         self.player1 = player1name
         self.player2 = player2name
         self.player3 = player3name
         self.player4 = player4name
         self.time = 60
         self.nighttime = True
+        self.prediction_text = "error"
+        self.pred_veg = -1
         self.chat = [("System", "New messages appear from the top.")]
-        self.players = [  # prediction vegetables will be based on g[rank - 1]
+        self.players = [  # prediction vegetables will be based on g[rank - 1] + day, 
+            # inv and balance for other players only used in singleplayer (for computer)
             {
                 "name": self.player1,
-                "net_worth": self.balance,
-                "offer": None,
+                "balance": 100.00,
+                "net_worth": 100.00,
+                "inv": [0, 0, 0, 0],
+                "offer": [True, 0],
                 "rank": 1
             },
             {
                 "name": self.player2,
+                "balance": 100.00,
                 "net_worth": 100.00,
-                "offer": None,
-                "rank": 4
+                "inv": [0, 0, 0, 0],
+                "offer": [True, 0],
+                "rank": 2
             },
             {
                 "name": self.player3,
+                "balance": 100.00,
                 "net_worth": 100.00,
-                "offer": None,
+                "inv": [0, 0, 0, 0],
+                "offer": [True, 0],
                 "rank": 3
             },
             {
                 "name": self.player4,
+                "balance": 100.00,
                 "net_worth": 100.00,
-                "offer": None,
-                "rank": 2
+                "inv": [0, 0, 0, 0],
+                "offer": [True, 0],
+                "rank": 4
             },
         ]
         self.vegetables = [
@@ -1014,48 +1080,41 @@ class GameInstance:
                 "id": 0,
                 "name": "Potatoes",
                 "cost": 0.50,
-                "init_stock": 150,
-                "count": 0,
-                "stock": 100,
-
+                "init_stock": 240,
+                "stock": 240,
             },
             {
                 "id": 1,
                 "name": "Carrots",
                 "cost": 0.75,
-                "init_stock": 120,
-                "count": 0,
-                "stock": 120,
+                "init_stock": 160,
+                "stock": 160,
             },
             {
                 "id": 2,
                 "name": "Wheat",
                 "cost": 1.00,
-                "count": 0,
-                "stock": 100,
-                "init_stock": 100,
+                "stock": 120,
+                "init_stock": 120,
             },
             {
                 "id": 3,
                 "name": "Tomatoes",
                 "cost": 2.00,
-                "count": 0,
-                "stock": 50,
-                "init_stock": 50,
+                "stock": 60,
+                "init_stock": 60,
             },
             {
                 "id": 4,
                 "name": "Corn",
                 "cost": 4.00,
                 "init_stock": 30,
-                "count": 0,
                 "stock": 30,
             },
             {
                 "id": 5,
                 "name": "Cabbages",
                 "cost": 6.00,
-                "count": 0,
                 "stock": 20,
                 "init_stock": 20,
             },
@@ -1063,17 +1122,15 @@ class GameInstance:
                 "id": 6,
                 "name": "Pumpkins",
                 "cost": 8.00,
-                "init_stock": 10,
-                "count": 0,
-                "stock": 10,
+                "init_stock": 15,
+                "stock": 15,
             },
             {
                 "id": 7,
                 "name": "Melons",
                 "cost": 10.00,
-                "init_stock": 10,
-                "count": 0,
-                "stock": 10,
+                "init_stock": 12,
+                "stock": 12,
             }
         ]
         self.daily_title = "Farmers Markets Open!"
@@ -1082,10 +1139,24 @@ class GameInstance:
     def update_constant(self):
         if not self.multiplayer:
             self.time -= 1
+            if not self.nighttime:
+                if self.day_timer/3.0 > self.time > self.day_timer/3.0 - 1:
+                    self.computer_interactions(3, pattern="prediction")
+                if self.day_timer/2.0 > self.time > self.day_timer/2.0 - 1:
+                    self.computer_interactions(2, pattern="random")
+                if self.day_timer/1.5 > self.time > self.day_timer/1.5 - 1:
+                    self.computer_interactions(1, pattern="prediction")
+        else:
+            pass
+        self.player_interactions()
 
     def update_daily(self):
         if not self.multiplayer:
-            self.sort_four()
+            if self.day > 0:
+                self.sort_four()
+        else:
+            # update rank variables from server
+            pass
 
     def sort_four(self):
         if self.players[0]["net_worth"] < self.players[1]["net_worth"]:
@@ -1129,28 +1200,195 @@ class GameInstance:
             return True
         else:
             return False
-            
+
+    def buy(self, playerid, selection, quantity):
+        if self.players[playerid]["balance"] < 0:
+            print("Error: Negative Balance")
+            self.players[playerid]["balance"] = 0
+        inv_item = selection
+        item_cost = self.vegetables[self.g[selection]]["cost"] * self.prices[selection][self.day]
+        if self.players[playerid]["balance"] >= item_cost * quantity and \
+                self.vegetables[self.g[selection]]["stock"] >= quantity:
+            self.vegetables[self.g[selection]]["stock"] -= quantity
+            self.players[playerid]["inv"][inv_item] += quantity
+            self.players[playerid]["balance"] -= item_cost * quantity
+        else:
+            tempquantity = quantity
+            if tempquantity >= self.vegetables[self.g[selection]]["stock"]:
+                tempquantity = self.vegetables[self.g[selection]]["stock"]
+            if item_cost * tempquantity >= self.players[playerid]["balance"]:
+                tempquantity = int(self.players[playerid]["balance"] / item_cost)
+            if tempquantity < 0:
+                print("Error: Negative Quantity")
+                tempquantity = 0
+            self.vegetables[self.g[selection]]["stock"] -= tempquantity
+            self.players[playerid]["inv"][inv_item] += tempquantity
+            self.players[playerid]["balance"] -= item_cost * tempquantity
+    
+    def sell(self, playerid, selection, quantity):
+        if selection == -1:
+            for item in range(4):
+                self.sell(playerid, item, 10000)
+            return
+        item_cost = self.vegetables[self.g[selection]]["cost"] * self.prices[selection][self.day]
+        if self.players[playerid]["inv"][selection] >= quantity:
+            self.players[playerid]["inv"][selection] -= quantity
+            self.vegetables[self.g[selection]]["stock"] += quantity
+            self.players[playerid]["balance"] += item_cost * quantity
+        else:
+            amt = self.players[playerid]["inv"][selection]
+            self.players[playerid]["inv"][selection] -= amt
+            self.vegetables[self.g[selection]]["stock"] += amt
+            self.players[playerid]["balance"] += item_cost * amt
+
+    def player_interactions(self):
+        if not self.multiplayer:
+            pass
+        else:
+            pass
+
+    def computer_interactions(self, playerid, pattern="prediction"):
+        if not self.multiplayer:
+            if self.day == self.day_limit:
+                self.sell(playerid, -1, 10000)
+                return
+            dontbuy = []
+            if pattern == "random":
+                self.sell(playerid, -1, 10000)
+                while self.players[playerid]["balance"] > 12.0 and self.players[playerid]["net_worth"] > 12.0 and len(dontbuy) < 4:
+                    purchase = randint(0, 3)
+                    while purchase in dontbuy:
+                        purchase = randint(0, 3)
+                    self.buy(playerid, purchase, 10000)
+                    dontbuy.append(purchase)
+            elif pattern == "prediction":
+                prediction = (self.players[playerid]["rank"] + self.day) % 4
+                if self.prices[prediction][self.day + 1] > self.prices[prediction][self.day]:
+                    self.sell(playerid, -1, 10000)
+                    self.buy(playerid, prediction, 10000)
+                elif self.prices[prediction][self.day + 1] < self.prices[prediction][self.day]:
+                    self.sell(playerid, prediction, 10000)
+                    dontbuy = [prediction]
+                while self.players[playerid]["balance"] > 12.0 and self.players[playerid]["net_worth"] > 12.0 and len(dontbuy) < 4:
+                    purchase = randint(0, 3)
+                    while purchase in dontbuy:
+                        purchase = randint(0, 3)
+                    self.buy(playerid, purchase, 10000)
+                    dontbuy.append(purchase)
+        player = self.players[playerid]
+        print(playerid, player["inv"], player["net_worth"], player["balance"])
+
+    def generate_prediction(self):
+        pred_veg = (self.players[self.playerid]["rank"] + self.day) % 4
+        self.pred_veg = pred_veg
+        # print("Prediction: " + str(self.prices[pred_veg][self.GameObject.day + 1]) + " vs " + str(self.prices[pred_veg][self.day]))
+        if self.day < self.day_limit and self.prices[pred_veg][self.day + 2] > self.prices[pred_veg][self.day + 1]:
+            self.prediction_text = "UP"
+        elif self.day < self.day_limit and self.prices[pred_veg][self.day + 2] < self.prices[pred_veg][self.day + 1]:
+            self.prediction_text = "DOWN"
+        else:
+            self.prediction_text = "---"
+
+    def execute_event(self, event_number):
+        self.daily_message = ""
+        if self.day <= 0:
+            self.daily_title = "Farmers Markets Opens!"
+            self.daily_message = "First time in the markets? Buy low and sell high to become the most profitable. Watch out for events every third day. "
+        elif event_number == 0:
+            self.daily_title = "Farmer's Market is Open!"
+            self.daily_message = "Normal day today in the market. "
+            for v in range(0, 4):
+                self.vegetables[self.g[v]]["stock"] += round(0.2 * self.vegetables[self.g[v]]["init_stock"])
+        elif event_number == 1:
+            self.daily_title = "Stock Shortage!"
+            self.daily_message = "A surge in demand has caused a shortage of produce. "
+            for v in range(0, 4):
+                self.vegetables[self.g[v]]["stock"] = round(0.5 * self.vegetables[self.g[v]]["stock"])
+        elif event_number == 2:
+            self.daily_title = "Stock surplus!"
+            self.daily_message = "Demand has plummeted, causing the available stock to rise. "
+            for v in range(0, 4):
+                self.vegetables[self.g[v]]["stock"] += self.vegetables[self.g[v]]["init_stock"]
+        elif event_number == 3:
+            self.daily_message = "A disaster at the market has ruined all of the stocked produce. "
+            self.daily_title = "Complete Stock Shortage!"
+            for v in range(0, 4):
+                self.vegetables[self.g[v]]["stock"] = 0
+        elif event_number == 4:
+            self.daily_title = "1/4 of Vegetables Rot!"
+            self.daily_message = "Bad weather has caused about 1/4 of all inventory produce to go bad overnight. "
+            for v in range(0, 4):
+                for playerid in range(4):
+                    self.players[playerid]["inv"][v] = round(0.75 * self.players[playerid]["inv"][v])
+        elif event_number == 5:
+            rotten_vegetable = randint(0, 3)
+            self.daily_title = "1/2 of " + self.vegetables[self.g[rotten_vegetable]]["name"] + " Rotten!"
+            self.daily_message = "Infestations have caused 1/2 of all of this inventoried vegetable to go bad. "
+            for playerid in range(4):
+                self.players[playerid]["inv"][rotten_vegetable] = round(0.5 * self.players[playerid]["inv"][rotten_vegetable])
+        elif event_number == 6:
+            self.daily_title = "Prices at Record Highs!"
+            self.daily_message = "Hyper-inflation has caused market prices to skyrocket. "
+
+        elif event_number == 7:
+            self.daily_title = "Prices at Record Lows!"
+            self.daily_message = "Economic depression has caused market prices to plummet. "
+
+        elif event_number == 8:
+            self.daily_title = "Balances Cut in Half!"
+            self.daily_message = "Economic recession has caused all savings to be slashed by 50%. "
+            for playerid in range(4):
+                self.players[playerid]["balance"] *= 0.5
+        elif event_number == 9:
+            self.daily_title = "Everyone Taxed at 25%!"
+            self.daily_message = "New taxes cause all balances to be reduced by 25%. "
+            for playerid in range(4):
+                self.players[playerid]["balance"] *= 0.75
+        self.daily_message += "Vegetables available now: " + self.vegetables[self.g1][
+            "name"] + ": $" + make_dollars(
+            self.vegetables[self.g1]["cost"] * self.prices[0][self.day + 1]) + ", with " + str(
+            self.vegetables[self.g1]["stock"]) + " in stock. " + self.vegetables[self.g2][
+                                  "name"] + ": $" + make_dollars(
+            self.vegetables[self.g2]["cost"] * self.prices[1][self.day + 1]) + ", with " + str(
+            self.vegetables[self.g2]["stock"]) + " in stock. " + self.vegetables[self.g3][
+                                  "name"] + ": $" + make_dollars(
+            self.vegetables[self.g3]["cost"] * self.prices[2][self.day + 1]) + ", with " + str(
+            self.vegetables[self.g3]["stock"]) + " in stock. " + self.vegetables[self.g4][
+                                  "name"] + ": $" + make_dollars(
+            self.vegetables[self.g4]["cost"] * self.prices[3][self.day + 1]) + ", with " + str(
+            self.vegetables[self.g4]["stock"]) + " in stock. " + "High demand this season! " + "Here for " + str(
+            self.day_limit - self.day) + " more days!"
+
     def next_night(self):
+        self.execute_event(self.dayevent[self.day])
         self.time = self.night_timer
         self.nighttime = True
-        networth = self.balance
-        for veggie in range(4):
-            networth += self.vegetables[self.g[veggie]]["cost"] * self.vegetables[self.g[veggie]]["count"] * \
-                        self.prices[veggie][
-                            self.day + 1]
-        self.players[0]["net_worth"] = networth
+        if not self.multiplayer:
+            self.generate_prediction()
+            for playerid in range(4):
+                networth = self.players[playerid]["balance"]
+                for veggie in range(4):
+                    networth += self.vegetables[self.g[veggie]]["cost"] * self.players[playerid]["inv"][veggie] * \
+                                self.prices[veggie][self.day + 1]
+                self.players[playerid]["net_worth"] = networth
         self.update_daily()
 
-    def send_message(self, msg):
-        self.chat.append((self.player1, msg))
+    def send_message(self, msg, player=None):
+        if not self.multiplayer:
+            if player is None:
+                player = self.player1
+            self.chat.append((player, msg))
 
 
 farmers_market = ClientInstance()
 while farmers_market.run:
     if farmers_market.loading:
         farmers_market.run_loading()
+    elif farmers_market.settings:
+        farmers_market.run_settings()
     elif farmers_market.game:
         farmers_market.run_game()
     elif farmers_market.menu:
         farmers_market.run_menu()
+
 pygame.quit()
