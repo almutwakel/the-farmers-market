@@ -3,7 +3,7 @@
 class Chat(object):
 
     def __init__(self):
-        self.content = []
+        self.content = [("System", "New messages appear from the top.")]
 
     def update_chat(self, msg):
         self.content.append(msg)
@@ -14,8 +14,8 @@ class Chat(object):
     def __len__(self):
         return len(self.content)
 
-    def __str__(self):
-        return "".join(self.content)
+    def append(self, msg):
+        self.content.append(msg)
 
     def __repr__(self):
         return str(self)
