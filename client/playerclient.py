@@ -1,8 +1,7 @@
 from random import random, randint
 
 import pygame
-
-from client.pygame_functions.roundedrect import AAfilledRoundedRect
+from pygame import *
 
 pygame.init()
 
@@ -12,6 +11,36 @@ pygame.init()
 
 
 # ------------------------------------------------
+
+def AAfilledRoundedRect(surface, color, rect, radius=0.4):
+
+    rect = Rect(rect)
+    color = Color(*color)
+    alpha = color.a
+    color.a = 0
+    pos = rect.topleft
+    rect.topleft = 0, 0
+    rectangle = Surface(rect.size, SRCALPHA)
+
+    circle = Surface([min(rect.size) * 3] * 2, SRCALPHA)
+    draw.ellipse(circle, (0, 0, 0), circle.get_rect(), 0)
+    circle = transform.smoothscale(circle, [int(min(rect.size) * radius)] * 2)
+
+    radius = rectangle.blit(circle, (0, 0))
+    radius.bottomright = rect.bottomright
+    rectangle.blit(circle, radius)
+    radius.topright = rect.topright
+    rectangle.blit(circle, radius)
+    radius.bottomleft = rect.bottomleft
+    rectangle.blit(circle, radius)
+
+    rectangle.fill((0, 0, 0), rect.inflate(-radius.w, 0))
+    rectangle.fill((0, 0, 0), rect.inflate(0, -radius.h))
+
+    rectangle.fill(color, special_flags=BLEND_RGBA_MAX)
+    rectangle.fill((255, 255, 255, alpha), special_flags=BLEND_RGBA_MIN)
+
+    return surface.blit(rectangle, pos)
 
 
 def make_dollars(dollars):
@@ -79,7 +108,7 @@ class ClientInstance:
         self.dark_white = (253 - 25, 245 - 25, 232 - 25)
         self.beige = (198, 198, 178)
         self.beige2 = (188, 188, 168)
-        self.beige3 = (168, 168, 148)
+        self.beige3 = (84, 84, 74)
         self.brown = (153, 102, 51)
         self.light_brown = (204, 153, 0)
         self.black = (0, 0, 0)
@@ -93,14 +122,14 @@ class ClientInstance:
         self.inventory_percentage = 0.3
         self.cloud_x = 1500
         self.market_selection = 1
+        print("pre-font")
+
         pygame.font.init()
         self.font2 = pygame.font.Font("fonts/orange_juice.ttf", 60)
-        self.font3 = pygame.font.SysFont("freesansbold.ttf", 22)
-        self.font1 = pygame.font.SysFont("Arial", 30)
-        self.font4 = pygame.font.SysFont("Segoe UI", 30)
+        self.font3 = pygame.font.Font("fonts/FreeSansBold.ttf", 16)
         self.font5 = pygame.font.Font("fonts/orange_juice.ttf", 35)
-        self.newspaperfont = pygame.font.SysFont("Monotype Corsiva", 60)
-        self.newspaperfont2 = pygame.font.SysFont("Monotype Corsiva", 30)
+        self.newspaperfont = pygame.font.Font("fonts/MonotypeCorsiva.ttf", 60)
+        self.newspaperfont2 = pygame.font.Font("fonts/MonotypeCorsiva.ttf", 30)
         pygame.display.set_caption("The Farmer's Market")
         self.menu_gui = {"hover": 1, "main": 0, "type": 0}
         self.game_options = [0, 14], [1, 25], [2, 15], [3, []]
@@ -147,6 +176,7 @@ class ClientInstance:
         self.news = True
         self.dark_green = (92, 158, 64)
         self.inv1color, self.inv2color, self.inv3color, self.inv4color = self.bright_green, self.bright_green, self.bright_green, self.bright_green
+
 
     def make_text(self, text, font, color, center_x, center_y):
         text_surface = font.render(text, True, color)
@@ -261,7 +291,7 @@ class ClientInstance:
         self.GameObject.next_night()
 
     def run_menu(self):
-        pygame.time.delay(5)
+        pygame.time.wait(1)
         self.check_mouse_hover()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -705,10 +735,8 @@ class ClientInstance:
                         self.offerbox = True
                         self.offerbox_txt = ""
                     elif self.exchange and 255 <= self.x <= 355 and 140 - self.title_height * 1.5 <= self.y <= 140 + self.title_height * 1.3:
-                        print("hi")
                         self.GameObject.players[self.GameObject.playerid]["offer"][0] = True
                     elif self.exchange and 352 <= self.x <= 452 and 140 - self.title_height * 1.5 <= self.y <= 140 + self.title_height * 1.3:
-                        print("bye")
                         self.GameObject.players[self.GameObject.playerid]["offer"][0] = False
                     # market veg buttons (inventory_position - 60, -40 + 0.25 * self.HEIGHT + 31, 50, 50)
                     elif self.inventory_position - 60 <= self.x <= self.inventory_position - 10 and 171 <= self.y <= 221:
@@ -893,7 +921,7 @@ class ClientInstance:
             # FPS / PING
             AAfilledRoundedRect(self.window, self.background_filled_color,
                                 (self.WIDTH * 0.44, self.HEIGHT * 0.02, self.WIDTH * 0.25, self.HEIGHT * 0.06))
-            self.make_text(str(round(self.Clock.get_fps(), 1)) + " FPS    30 ms", self.font5, self.brown,
+            self.make_text(str(round(self.Clock.get_fps(), 1)) + " FPS", self.font5, self.brown,
                            0.565 * self.WIDTH,
                            0.05 * self.HEIGHT + 2)
             # bottom bar
@@ -1032,9 +1060,9 @@ class ClientInstance:
                 pygame.draw.line(self.window, self.beige2, (0.2 * self.WIDTH, 200), (0.7 * self.WIDTH, 200), 10)
                 pygame.draw.line(self.window, self.beige2, (0.3 * self.WIDTH, 200), (0.3 * self.WIDTH, 590), 5)
                 pygame.draw.line(self.window, self.beige2, (0.6 * self.WIDTH, 200), (0.6 * self.WIDTH, 590), 5)
-                pygame.draw.rect(self.window, self.beige3, (0.3 * self.WIDTH + 12, 215, 0.3 * self.WIDTH - 24, 60))
-                self.make_text(self.GameObject.daily_title, self.newspaperfont2, self.beige3, 0.45 * self.WIDTH, 295)
-                self.blit_text(0.3 * self.WIDTH - 20, 275, self.GameObject.daily_message, (0.3 * self.WIDTH + 10, 315),
+                pygame.draw.rect(self.window, self.beige2, (0.3 * self.WIDTH + 12, 215, 0.3 * self.WIDTH - 24, 60))
+                self.make_text(self.GameObject.daily_title, self.newspaperfont2, self.beige3, 0.45 * self.WIDTH, 245)
+                self.blit_text(0.3 * self.WIDTH - 20, 300, self.GameObject.daily_message, (0.3 * self.WIDTH + 10, 285),
                                self.font3,
                                self.beige3, 5)
             # market menu  MAM
@@ -1173,7 +1201,6 @@ class ClientInstance:
 class GameInstance(object):
     def __init__(self, multiplayer, playerid=1, player1name="Player", player2name="Computer 1",
                  player3name="Computer 2", player4name="Computer 3", settings=None):
-        print(settings)
         if settings is None:
             settings = []
         self.multiplayer = multiplayer
